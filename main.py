@@ -442,25 +442,30 @@ while running:
         draw_message_log(screen, message_log, MESSAGE_FONT, message_log_position, GREY)
 
         if game_over:
-            # GAME_OVER_FONT is now defined globally
+            # Ensure game_over_text_surface is created here, inside the if game_over block
             game_over_text_surface = GAME_OVER_FONT.render("Game Over", True, RED)
             text_rect = game_over_text_surface.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT/2))
-        
-        # Optional: Add a semi-transparent overlay to make text more readable
-        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-        overlay.fill((0,0,0,128)) # Black with 50% alpha
-        screen.blit(overlay, (0,0))
-        
-        screen.blit(game_over_text_surface, text_rect)
-        pygame.display.flip()
-        # Event loop for game over to allow closing, but prevent other actions
-        while game_over:
-            for event_gm_over in pygame.event.get():
-                if event_gm_over.type == pygame.QUIT:
-                    running = False
-                    game_over = False # To exit this inner loop
-            pygame.time.wait(100) # Prevent high CPU usage in game over state
-        continue
+            
+            # Optional: Add a semi-transparent overlay to make text more readable
+            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            overlay.fill((0,0,0,128)) # Black with 50% alpha
+            screen.blit(overlay, (0,0))
+            
+            screen.blit(game_over_text_surface, text_rect)
+            pygame.display.flip()
+            # Event loop for game over to allow closing, but prevent other actions
+            while game_over: # This inner loop will now correctly use the 'game_over' variable from the outer scope
+                for event_gm_over in pygame.event.get():
+                    if event_gm_over.type == pygame.QUIT:
+                        running = False
+                        game_over = False # To exit this inner loop
+                pygame.time.wait(100) # Prevent high CPU usage in game over state
+            if not running: # If QUIT was detected in game over loop
+                continue
+        else:
+            # If not game_over, flip the display for normal game rendering
+            pygame.display.flip()
+
 
     # Get pressed keys
     keys = pygame.key.get_pressed()
