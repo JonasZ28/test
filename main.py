@@ -174,6 +174,7 @@ player = {
 pygame.font.init() # Explicitly initialize font module, good practice
 STATS_FONT = pygame.font.Font(None, 28) # Default system font, size 28
 MESSAGE_FONT = pygame.font.Font(None, 24) # Slightly smaller for messages
+GAME_OVER_FONT = pygame.font.Font(None, 74) # Font for Game Over message
 WHITE = (255, 255, 255)
 GREY = (200, 200, 200) # For message log text
 
@@ -441,9 +442,9 @@ while running:
         draw_message_log(screen, message_log, MESSAGE_FONT, message_log_position, GREY)
 
         if game_over:
-            game_over_font = pygame.font.Font(None, 74)
-        game_over_text_surface = game_over_font.render("Game Over", True, RED)
-        text_rect = game_over_text_surface.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT/2))
+            # GAME_OVER_FONT is now defined globally
+            game_over_text_surface = GAME_OVER_FONT.render("Game Over", True, RED)
+            text_rect = game_over_text_surface.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT/2))
         
         # Optional: Add a semi-transparent overlay to make text more readable
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
