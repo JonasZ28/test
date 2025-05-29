@@ -418,26 +418,66 @@ if not game_loaded_successfully: # If starting a new game, ensure game_over is F
 
 
 while running:
-    # Main Game Logic (runs if not in shop menu)
-    if not in_shop_menu:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
+    # Unified Event Loop
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+        if in_shop_menu:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    in_shop_menu = False
+                    add_message("Exited shop.")
+                    shop_message = "" 
+                
+                item_index_to_buy = -1
+                if event.key == pygame.K_1: item_index_to_buy = 0
+                elif event.key == pygame.K_2: item_index_to_buy = 1
+                elif event.key == pygame.K_3: item_index_to_buy = 2
+                elif event.key == pygame.K_4: item_index_to_buy = 3
+                elif event.key == pygame.K_5: item_index_to_buy = 4
+
+                if 0 <= item_index_to_buy < len(SHOP_INVENTORY):
+                    selected_item = SHOP_INVENTORY[item_index_to_buy]
+                    if player['gold'] >= selected_item['cost']:
+                        player['gold'] -= selected_item['cost']
+                        if selected_item['effect_type'] == 'HEAL':
+                            player['hp'] = min(player['max_hp'], player['hp'] + selected_item['amount'])
+                        elif selected_item['effect_type'] == 'ADD_KEY':
+                            player['keys'] += selected_item['amount']
+                        elif selected_item['effect_type'] == 'ATK_BOOST':
+                            player['atk'] += selected_item['amount']
+                        elif selected_item['effect_type'] == 'DEF_BOOST':
+                             player['def'] += selected_item['amount']
+                        shop_message = f"Bought {selected_item['name']}."
+                        add_message(f"Bought {selected_item['name']} for {selected_item['cost']} gold.")
+                    else:
+                        shop_message = "Not enough gold!"
+        
+        # elif game_over: # game_over loop handles its own QUIT
+            # pass 
+        
+        else: # Normal gameplay event handling (not in shop, not effectively in game_over's own loop)
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_s:
                     save_game()
+                # Other normal gameplay KEYDOWN events can go here
+    
+    # Main Game Logic (runs if not in shop menu)
+    if not in_shop_menu:
+        # Centralize current map and enemy data access for the current frame
+        current_map_data = all_floor_maps[current_floor]
+        current_enemies_list = all_enemies_on_floors[current_floor]
 
-        # --- Drawing Game World ---
+        # --- Drawing Game World (This part is always active if not in shop, game_over handles its own drawing) ---
         screen.fill(BLACK)
-        current_map_to_draw = all_floor_maps[current_floor]
-        current_enemies_to_draw = all_enemies_on_floors[current_floor]
-        
-        draw_map(screen, current_map_to_draw, TILE_SIZE)
-        draw_enemies(screen, current_enemies_to_draw, TILE_SIZE)
+        # Use the centrally defined current_map_data and current_enemies_list for drawing
+        draw_map(screen, current_map_data, TILE_SIZE)
+        draw_enemies(screen, current_enemies_list, TILE_SIZE)
         screen.blit(player_surface, (player["x"], player["y"]))
         
         stats_position = (650, 20) 
-        draw_player_stats(screen, player, STATS_FONT, stats_position, current_floor)
+        draw_player_stats(screen, player, STATS_FONT, stats_position, current_floor + 1) # Display 1-indexed floor
         message_log_position = (650, 180)
         draw_message_log(screen, message_log, MESSAGE_FONT, message_log_position, GREY)
 
@@ -466,60 +506,73 @@ while running:
             # If not game_over, flip the display for normal game rendering
             pygame.display.flip()
 
+        # --- Start of Game Logic Block (only if not game_over and not in_shop_menu) ---
+        if not game_over: 
+            action_taken_this_turn = False 
 
-    # Get pressed keys
-    keys = pygame.key.get_pressed()
-    
-    original_x = player["x"]
-    original_y = player["y"]
-    
-    prospective_x = original_x
-    prospective_y = original_y
+            # Get pressed keys
+            keys = pygame.key.get_pressed()
+            
+            original_x = player["x"]
+            original_y = player["y"]
+            
+            prospective_x = original_x
+            prospective_y = original_y
 
-    if keys[pygame.K_LEFT]: prospective_x -= player["speed"]
-    if keys[pygame.K_RIGHT]: prospective_x += player["speed"]
-    if keys[pygame.K_UP]: prospective_y -= player["speed"]
-    if keys[pygame.K_DOWN]: prospective_y += player["speed"]
+            if keys[pygame.K_LEFT]: prospective_x -= player["speed"]
+            if keys[pygame.K_RIGHT]: prospective_x += player["speed"]
+            if keys[pygame.K_UP]: prospective_y -= player["speed"]
+            if keys[pygame.K_DOWN]: prospective_y += player["speed"]
 
-    if prospective_x < 0: prospective_x = 0
-    elif prospective_x > SCREEN_WIDTH - player["width"]: prospective_x = SCREEN_WIDTH - player["width"]
-    if prospective_y < 0: prospective_y = 0
-    elif prospective_y > SCREEN_HEIGHT - player["height"]: prospective_y = SCREEN_HEIGHT - player["height"]
+            if prospective_x < 0: prospective_x = 0
+            elif prospective_x > SCREEN_WIDTH - player["width"]: prospective_x = SCREEN_WIDTH - player["width"]
+            if prospective_y < 0: prospective_y = 0
+            elif prospective_y > SCREEN_HEIGHT - player["height"]: prospective_y = SCREEN_HEIGHT - player["height"]
 
-    target_center_x = prospective_x + player["width"] / 2
-    target_center_y = prospective_y + player["height"] / 2
-    target_map_col = int(target_center_x // TILE_SIZE)
-    target_map_row = int(target_center_y // TILE_SIZE)
+            target_center_x = prospective_x + player["width"] / 2
+            target_center_y = prospective_y + player["height"] / 2
+            target_map_col = int(target_center_x // TILE_SIZE)
+            target_map_row = int(target_center_y // TILE_SIZE)
 
-    action_taken_this_turn = False
-
-    # --- Stair Interaction Logic ---
-    current_map_data = all_floor_maps[current_floor]
+            # --- Stair Interaction Logic ---
+            # current_map_data and current_enemies_list are already defined at the start of the 'if not in_shop_menu:' block
     player_is_moving_to_new_tile = (int(original_x // TILE_SIZE) != target_map_col or int(original_y // TILE_SIZE) != target_map_row)
 
     if player_is_moving_to_new_tile and 0 <= target_map_row < len(current_map_data) and 0 <= target_map_col < len(current_map_data[0]):
-        tile_type_at_target = current_map_data[target_map_row][target_map_col] # Get tile type at prospective location
+        tile_type_at_target = current_map_data[target_map_row][target_map_col] 
 
         if tile_type_at_target == STAIRS_UP_TILE:
             if current_floor == 0 and (target_map_col, target_map_row) == F0_STAIRS_UP_POS:
                 current_floor = 1; player['map_x'], player['map_y'] = F1_STAIRS_DOWN_ARRIVAL_POS
                 action_taken_this_turn = True; add_message(f"Moved to Floor {current_floor + 1}.")
+                # Update map/enemy data immediately after floor change for this frame
+                current_map_data = all_floor_maps[current_floor]
+                current_enemies_list = all_enemies_on_floors[current_floor]
         elif tile_type_at_target == STAIRS_DOWN_TILE:
             if current_floor == 1:
+                new_floor_idx = -1
+                new_player_map_coords = (-1,-1)
                 if (target_map_col, target_map_row) == F1_STAIRS_DOWN_POS:
-                    current_floor = 0; player['map_x'], player['map_y'] = F0_STAIRS_DOWN_ARRIVAL_POS
-                    action_taken_this_turn = True; add_message(f"Moved to Floor {current_floor + 1}.")
+                    new_floor_idx = 0; new_player_map_coords = F0_STAIRS_DOWN_ARRIVAL_POS
                 elif (target_map_col, target_map_row) == F1_STAIRS_DOWN_ARRIVAL_POS:
-                    current_floor = 0; player['map_x'], player['map_y'] = (int(player_start_pixel_x // TILE_SIZE), int(player_start_pixel_y // TILE_SIZE))
+                    new_floor_idx = 0; new_player_map_coords = (int(player_start_pixel_x // TILE_SIZE), int(player_start_pixel_y // TILE_SIZE))
+                
+                if new_floor_idx != -1:
+                    current_floor = new_floor_idx
+                    player['map_x'], player['map_y'] = new_player_map_coords
                     action_taken_this_turn = True; add_message(f"Moved to Floor {current_floor + 1}.")
+                    # Update map/enemy data immediately after floor change for this frame
+                    current_map_data = all_floor_maps[current_floor]
+                    current_enemies_list = all_enemies_on_floors[current_floor]
         
-        if action_taken_this_turn: # If stairs were used
+        if action_taken_this_turn: 
             player['x'] = player['map_x'] * TILE_SIZE + (TILE_SIZE - player['width']) // 2
             player['y'] = player['map_y'] * TILE_SIZE + (TILE_SIZE - player['height']) // 2
 
     # --- NPC Interaction Logic (only if no stair interaction occurred) ---
     if not action_taken_this_turn and player_is_moving_to_new_tile and \
        0 <= target_map_row < len(current_map_data) and 0 <= target_map_col < len(current_map_data[0]):
+        # current_map_data is already up-to-date for the current floor
         tile_type_at_target_for_interaction = current_map_data[target_map_row][target_map_col] 
         
         if tile_type_at_target_for_interaction == NPC_WISE_MAN_TILE:
@@ -537,10 +590,10 @@ while running:
 
     # --- Combat Logic (only if no stair, NPC or Shop interaction occurred) ---
     if not action_taken_this_turn and player_is_moving_to_new_tile:
-        current_enemies_list = all_enemies_on_floors[current_floor]
+        # current_enemies_list is already up-to-date for the current floor
         enemy_to_fight = None
         enemy_idx = -1
-        for i, enemy in enumerate(current_enemies_list):
+        for i, enemy in enumerate(current_enemies_list): 
             if enemy['map_x'] == target_map_col and enemy['map_y'] == target_map_row:
                 enemy_to_fight = enemy
                 enemy_idx = i
@@ -659,48 +712,10 @@ while running:
                 player['def'] += def_boost
                 add_message(f"Picked up Steel Shield. +{def_boost} DEF.")
                 current_map_data_for_items[map_row_for_item][map_col_for_item] = FLOOR_TILE_TYPE
+        # --- End of Game Logic Block (if not game_over) ---
 
     # End of 'if not in_shop_menu:' block
-    else: # Player is in the shop menu
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-                in_shop_menu = False # Ensure main loop exits if shop is quit
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    in_shop_menu = False
-                    add_message("Exited shop.")
-                    shop_message = "" # Clear shop message on exit
-                
-                # Handle number key presses for purchases
-                item_index_to_buy = -1
-                if event.key == pygame.K_1: item_index_to_buy = 0
-                elif event.key == pygame.K_2: item_index_to_buy = 1
-                elif event.key == pygame.K_3: item_index_to_buy = 2
-                elif event.key == pygame.K_4: item_index_to_buy = 3
-                elif event.key == pygame.K_5: item_index_to_buy = 4
-                # Add more if SHOP_INVENTORY grows
-
-                if 0 <= item_index_to_buy < len(SHOP_INVENTORY):
-                    selected_item = SHOP_INVENTORY[item_index_to_buy]
-                    if player['gold'] >= selected_item['cost']:
-                        player['gold'] -= selected_item['cost']
-                        
-                        # Apply effect
-                        if selected_item['effect_type'] == 'HEAL':
-                            player['hp'] = min(player['max_hp'], player['hp'] + selected_item['amount'])
-                        elif selected_item['effect_type'] == 'ADD_KEY':
-                            player['keys'] += selected_item['amount']
-                        elif selected_item['effect_type'] == 'ATK_BOOST':
-                            player['atk'] += selected_item['amount']
-                        elif selected_item['effect_type'] == 'DEF_BOOST': # Example for future
-                            player['def'] += selected_item['amount']
-                        
-                        shop_message = f"Bought {selected_item['name']}."
-                        add_message(f"Bought {selected_item['name']} for {selected_item['cost']} gold.")
-                    else:
-                        shop_message = "Not enough gold!"
-        
+    else: # Player is in the shop menu (Drawing part only, event handling moved up)
         # --- Drawing Shop UI ---
         screen.fill(SHOP_UI_BACKGROUND_COLOR)
         
