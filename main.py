@@ -512,6 +512,7 @@ while running:
 
             # Get pressed keys
             keys = pygame.key.get_pressed()
+            print(f"DEBUG: Keys - L:{keys[pygame.K_LEFT]}, R:{keys[pygame.K_RIGHT]}, U:{keys[pygame.K_UP]}, D:{keys[pygame.K_DOWN]}")
             
             original_x = player["x"]
             original_y = player["y"]
@@ -533,189 +534,215 @@ while running:
             target_center_y = prospective_y + player["height"] / 2
             target_map_col = int(target_center_x // TILE_SIZE)
             target_map_row = int(target_center_y // TILE_SIZE)
+            print(f"DEBUG: Original Pos (pixels): ({original_x}, {original_y}), Prospective Pos (pixels): ({prospective_x}, {prospective_y})")
+            print(f"DEBUG: Target Grid Cell: ({target_map_col}, {target_map_row})")
 
             # --- Stair Interaction Logic ---
             # current_map_data and current_enemies_list are already defined at the start of the 'if not in_shop_menu:' block
-    player_is_moving_to_new_tile = (int(original_x // TILE_SIZE) != target_map_col or int(original_y // TILE_SIZE) != target_map_row)
+            player_is_moving_to_new_tile = (int(original_x // TILE_SIZE) != target_map_col or int(original_y // TILE_SIZE) != target_map_row)
+            print(f"DEBUG: Player attempting to move to new tile: {player_is_moving_to_new_tile}")
 
-    if player_is_moving_to_new_tile and 0 <= target_map_row < len(current_map_data) and 0 <= target_map_col < len(current_map_data[0]):
-        tile_type_at_target = current_map_data[target_map_row][target_map_col] 
+            print("DEBUG: Checking Stairs Interaction")
+            if player_is_moving_to_new_tile and 0 <= target_map_row < len(current_map_data) and 0 <= target_map_col < len(current_map_data[0]):
+                tile_type_at_target = current_map_data[target_map_row][target_map_col] 
 
-        if tile_type_at_target == STAIRS_UP_TILE:
-            if current_floor == 0 and (target_map_col, target_map_row) == F0_STAIRS_UP_POS:
-                current_floor = 1; player['map_x'], player['map_y'] = F1_STAIRS_DOWN_ARRIVAL_POS
-                action_taken_this_turn = True; add_message(f"Moved to Floor {current_floor + 1}.")
-                # Update map/enemy data immediately after floor change for this frame
-                current_map_data = all_floor_maps[current_floor]
-                current_enemies_list = all_enemies_on_floors[current_floor]
-        elif tile_type_at_target == STAIRS_DOWN_TILE:
-            if current_floor == 1:
-                new_floor_idx = -1
-                new_player_map_coords = (-1,-1)
-                if (target_map_col, target_map_row) == F1_STAIRS_DOWN_POS:
-                    new_floor_idx = 0; new_player_map_coords = F0_STAIRS_DOWN_ARRIVAL_POS
-                elif (target_map_col, target_map_row) == F1_STAIRS_DOWN_ARRIVAL_POS:
-                    new_floor_idx = 0; new_player_map_coords = (int(player_start_pixel_x // TILE_SIZE), int(player_start_pixel_y // TILE_SIZE))
+                if tile_type_at_target == STAIRS_UP_TILE:
+                    if current_floor == 0 and (target_map_col, target_map_row) == F0_STAIRS_UP_POS:
+                        current_floor = 1; player['map_x'], player['map_y'] = F1_STAIRS_DOWN_ARRIVAL_POS
+                        action_taken_this_turn = True; add_message(f"Moved to Floor {current_floor + 1}.")
+                        # Update map/enemy data immediately after floor change for this frame
+                        current_map_data = all_floor_maps[current_floor]
+                        current_enemies_list = all_enemies_on_floors[current_floor]
+                elif tile_type_at_target == STAIRS_DOWN_TILE:
+                    if current_floor == 1:
+                        new_floor_idx = -1
+                        new_player_map_coords = (-1,-1)
+                        if (target_map_col, target_map_row) == F1_STAIRS_DOWN_POS:
+                            new_floor_idx = 0; new_player_map_coords = F0_STAIRS_DOWN_ARRIVAL_POS
+                        elif (target_map_col, target_map_row) == F1_STAIRS_DOWN_ARRIVAL_POS:
+                            new_floor_idx = 0; new_player_map_coords = (int(player_start_pixel_x // TILE_SIZE), int(player_start_pixel_y // TILE_SIZE))
+                        
+                        if new_floor_idx != -1:
+                            current_floor = new_floor_idx
+                            player['map_x'], player['map_y'] = new_player_map_coords
+                            action_taken_this_turn = True; add_message(f"Moved to Floor {current_floor + 1}.")
+                            # Update map/enemy data immediately after floor change for this frame
+                            current_map_data = all_floor_maps[current_floor]
+                            current_enemies_list = all_enemies_on_floors[current_floor]
                 
-                if new_floor_idx != -1:
-                    current_floor = new_floor_idx
-                    player['map_x'], player['map_y'] = new_player_map_coords
-                    action_taken_this_turn = True; add_message(f"Moved to Floor {current_floor + 1}.")
-                    # Update map/enemy data immediately after floor change for this frame
-                    current_map_data = all_floor_maps[current_floor]
-                    current_enemies_list = all_enemies_on_floors[current_floor]
-        
-        if action_taken_this_turn: 
-            player['x'] = player['map_x'] * TILE_SIZE + (TILE_SIZE - player['width']) // 2
-            player['y'] = player['map_y'] * TILE_SIZE + (TILE_SIZE - player['height']) // 2
+                if action_taken_this_turn: 
+                    player['x'] = player['map_x'] * TILE_SIZE + (TILE_SIZE - player['width']) // 2
+                    player['y'] = player['map_y'] * TILE_SIZE + (TILE_SIZE - player['height']) // 2
 
-    # --- NPC Interaction Logic (only if no stair interaction occurred) ---
-    if not action_taken_this_turn and player_is_moving_to_new_tile and \
-       0 <= target_map_row < len(current_map_data) and 0 <= target_map_col < len(current_map_data[0]):
-        # current_map_data is already up-to-date for the current floor
-        tile_type_at_target_for_interaction = current_map_data[target_map_row][target_map_col] 
-        
-        if tile_type_at_target_for_interaction == NPC_WISE_MAN_TILE:
-            if NPC_WISE_MAN_TILE in NPC_DIALOGUE:
-                add_message(NPC_DIALOGUE[NPC_WISE_MAN_TILE])
-            else:
-                add_message("The person stands silently.")
-            action_taken_this_turn = True 
-        
-        elif tile_type_at_target_for_interaction == SHOPKEEPER_TILE:
-            in_shop_menu = True
-            shop_message = "Welcome! Press number to buy, ESC to exit."
-            action_taken_this_turn = True
-
-
-    # --- Combat Logic (only if no stair, NPC or Shop interaction occurred) ---
-    if not action_taken_this_turn and player_is_moving_to_new_tile:
-        # current_enemies_list is already up-to-date for the current floor
-        enemy_to_fight = None
-        enemy_idx = -1
-        for i, enemy in enumerate(current_enemies_list): 
-            if enemy['map_x'] == target_map_col and enemy['map_y'] == target_map_row:
-                enemy_to_fight = enemy
-                enemy_idx = i
-                break
-        
-        if enemy_to_fight:
-            updated_enemy = handle_combat(player, enemy_to_fight)
-            current_enemies_list[enemy_idx] = updated_enemy 
-
-            if updated_enemy['hp'] <= 0:
-                # Award gold
-                if 'gold_drop' in updated_enemy:
-                    player['gold'] += updated_enemy['gold_drop']
-                    add_message(f"Gained {updated_enemy['gold_drop']} gold from {updated_enemy['name']}.")
+            # --- NPC Interaction Logic (only if no stair interaction occurred) ---
+            print("DEBUG: Checking NPC/Shop Interaction")
+            if not action_taken_this_turn and player_is_moving_to_new_tile and \
+               0 <= target_map_row < len(current_map_data) and 0 <= target_map_col < len(current_map_data[0]):
+                # current_map_data is already up-to-date for the current floor
+                tile_type_at_target_for_interaction = current_map_data[target_map_row][target_map_col] 
                 
-                # Award XP
-                if 'xp_yield' in updated_enemy:
-                    player['experience'] += updated_enemy['xp_yield']
-                    add_message(f"Gained {updated_enemy['xp_yield']} XP from {updated_enemy['name']}.")
-                    # Check for level up (potentially multiple times)
-                    while check_level_up(player):
-                        pass # The function handles messages and stat changes
+                if tile_type_at_target_for_interaction == NPC_WISE_MAN_TILE:
+                    if NPC_WISE_MAN_TILE in NPC_DIALOGUE:
+                        add_message(NPC_DIALOGUE[NPC_WISE_MAN_TILE])
+                    else:
+                        add_message("The person stands silently.")
+                    action_taken_this_turn = True 
+                
+                elif tile_type_at_target_for_interaction == SHOPKEEPER_TILE:
+                    in_shop_menu = True
+                    shop_message = "Welcome! Press number to buy, ESC to exit."
+                    action_taken_this_turn = True
 
-                current_enemies_list.pop(enemy_idx)
+
+            # --- Combat Logic (only if no stair, NPC or Shop interaction occurred) ---
+            print("DEBUG: Checking Combat Interaction")
+            if not action_taken_this_turn and player_is_moving_to_new_tile:
+                # current_enemies_list is already up-to-date for the current floor
+                enemy_to_fight = None
+                enemy_idx = -1
+                for i, enemy in enumerate(current_enemies_list): 
+                    if enemy['map_x'] == target_map_col and enemy['map_y'] == target_map_row:
+                        enemy_to_fight = enemy
+                        enemy_idx = i
+                        break
+                
+                if enemy_to_fight:
+                    updated_enemy = handle_combat(player, enemy_to_fight)
+                    current_enemies_list[enemy_idx] = updated_enemy 
+
+                    if updated_enemy['hp'] <= 0:
+                        # Award gold
+                        if 'gold_drop' in updated_enemy:
+                            player['gold'] += updated_enemy['gold_drop']
+                            add_message(f"Gained {updated_enemy['gold_drop']} gold from {updated_enemy['name']}.")
+                        
+                        # Award XP
+                        if 'xp_yield' in updated_enemy:
+                            player['experience'] += updated_enemy['xp_yield']
+                            add_message(f"Gained {updated_enemy['xp_yield']} XP from {updated_enemy['name']}.")
+                            # Check for level up (potentially multiple times)
+                            while check_level_up(player):
+                                pass # The function handles messages and stat changes
+
+                        current_enemies_list.pop(enemy_idx)
+                    
+                    if player['hp'] <= 0:
+                        game_over = True
+                        add_message("Game Over.") 
+                    
+                    action_taken_this_turn = True 
+
+            # --- Door Interaction Logic (only if no combat or stair interaction occurred) ---
+            print("DEBUG: Checking Door Interaction")
+            if not action_taken_this_turn and 0 <= target_map_row < len(current_map_data) and 0 <= target_map_col < len(current_map_data[0]):
+                tile_type_at_target = current_map_data[target_map_row][target_map_col] # Re-fetch, map could change if multi-step actions were allowed
+                if tile_type_at_target == DOOR_TILE and player_is_moving_to_new_tile:
+                    if player["keys"] > 0:
+                        player["keys"] -= 1
+                        current_map_data[target_map_row][target_map_col] = FLOOR_TILE_TYPE # Open door
+                        add_message("Opened a door.")
+                        action_taken_this_turn = True 
+                    else:
+                        add_message("You need a key!")
+                        action_taken_this_turn = True 
             
-            if player['hp'] <= 0:
-                game_over = True
-                add_message("Game Over.") 
-            
-            action_taken_this_turn = True 
+            # --- Movement and Wall Collision (if no action like combat, door, or stairs consumed the turn) ---
+            print(f"DEBUG: Entering final movement block. action_taken_this_turn: {action_taken_this_turn}")
+            if not action_taken_this_turn:
+                temp_player_rect = pygame.Rect(prospective_x, prospective_y, player["width"], player["height"])
+                collision_result = check_collision(temp_player_rect, current_map_data, TILE_SIZE)
+                print(f"DEBUG: Collision check result for combined move: {collision_result}")
+                if not collision_result:
+                    player["x"] = prospective_x
+                    player["y"] = prospective_y
+                    # Update map_x and map_y based on pixel position after successful move
+                    player["map_x"] = int(player["x"] // TILE_SIZE) 
+                    player["map_y"] = int(player["y"] // TILE_SIZE)
+                    print(f"DEBUG: Player Pos Updated To: ({player['x']}, {player['y']}), Map Pos: ({player['map_x']}, {player['map_y']})")
+                else: # Sliding logic
+                    moved_x_only = False
+                    temp_player_rect_x_only = pygame.Rect(prospective_x, original_y, player["width"], player["height"])
+                    if original_x != prospective_x : # Only check X-slide if there was an X movement attempt
+                        collision_x_result = check_collision(temp_player_rect_x_only, current_map_data, TILE_SIZE)
+                        print(f"DEBUG: Collision check result for X-only move: {collision_x_result}")
+                        if not collision_x_result:
+                            player["x"] = prospective_x
+                            player["map_x"] = int(player["x"] // TILE_SIZE)
+                            # player["y"] remains original_y for this part of slide check
+                            player["map_y"] = int(original_y // TILE_SIZE) 
+                            moved_x_only = True
+                            print(f"DEBUG: Player Pos Updated (X-SLIDE) To: ({player['x']}, {player['y']}), Map Pos: ({player['map_x']}, {player['map_y']})")
 
-    # --- Door Interaction Logic (only if no combat or stair interaction occurred) ---
-    if not action_taken_this_turn and 0 <= target_map_row < len(current_map_data) and 0 <= target_map_col < len(current_map_data[0]):
-        tile_type_at_target = current_map_data[target_map_row][target_map_col] # Re-fetch, map could change if multi-step actions were allowed
-        if tile_type_at_target == DOOR_TILE and player_is_moving_to_new_tile:
-            if player["keys"] > 0:
-                player["keys"] -= 1
-                current_map_data[target_map_row][target_map_col] = FLOOR_TILE_TYPE # Open door
-                add_message("Opened a door.")
-                action_taken_this_turn = True 
-            else:
-                add_message("You need a key!")
-                action_taken_this_turn = True 
-    
-    # --- Movement and Wall Collision (if no action like combat, door, or stairs consumed the turn) ---
-    if not action_taken_this_turn:
-        temp_player_rect = pygame.Rect(prospective_x, prospective_y, player["width"], player["height"])
-        if not check_collision(temp_player_rect, current_map_data, TILE_SIZE):
-            player["x"] = prospective_x
-            player["y"] = prospective_y
-            # Update map_x and map_y based on pixel position after successful move
-            player["map_x"] = int(player["x"] // TILE_SIZE) 
-            player["map_y"] = int(player["y"] // TILE_SIZE)
-        else: # Sliding logic
-            moved_x_only = False
-            temp_player_rect_x_only = pygame.Rect(prospective_x, original_y, player["width"], player["height"])
-            if original_x != prospective_x and not check_collision(temp_player_rect_x_only, current_map_data, TILE_SIZE):
-                player["x"] = prospective_x
-                player["map_x"] = int(player["x"] // TILE_SIZE)
-                moved_x_only = True
-
-            current_x_for_y_slide = player["x"] if moved_x_only else original_x
-            # For Y-only slide, use the potentially updated player["x"] if X-slide occurred, otherwise original_x
-            # map_x for Y-slide should correspond to current_x_for_y_slide
-            # map_y will be updated if Y-slide is successful
-            temp_player_rect_y_only = pygame.Rect(current_x_for_y_slide, prospective_y, player["width"], player["height"])
-            if original_y != prospective_y and not check_collision(temp_player_rect_y_only, current_map_data, TILE_SIZE):
-                player["y"] = prospective_y
-                player["map_y"] = int(player["y"] // TILE_SIZE)
-                # If X also moved, map_x is already updated. If only Y moved, need to ensure map_x is correct.
-                if not moved_x_only:
-                    player["map_x"] = int(current_x_for_y_slide // TILE_SIZE)
+                    # Y-only slide: If X-slide happened, check Y from new player X. Else, from original X.
+                    # If only Y movement was intended, prospective_x is original_x.
+                    current_x_for_y_slide_check = player["x"] if moved_x_only else original_x
+                    temp_player_rect_y_only = pygame.Rect(current_x_for_y_slide_check, prospective_y, player["width"], player["height"])
+                    if original_y != prospective_y : # Only check Y-slide if there was a Y movement attempt
+                        collision_y_result = check_collision(temp_player_rect_y_only, current_map_data, TILE_SIZE)
+                        print(f"DEBUG: Collision check result for Y-only move (from x={current_x_for_y_slide_check}): {collision_y_result}")
+                        if not collision_y_result:
+                            player["y"] = prospective_y
+                            player["map_y"] = int(player["y"] // TILE_SIZE)
+                            # Ensure map_x is correct based on whether X-slide occurred or not
+                            player["map_x"] = int(current_x_for_y_slide_check // TILE_SIZE)
+                            # If X-slide also happened, player["x"] is already prospective_x
+                            # If only Y-slide, player["x"] remains original_x (current_x_for_y_slide_check)
+                            if not moved_x_only: player["x"] = original_x # Correct pixel X if only Y moved
+                                
+                            print(f"DEBUG: Player Pos Updated (Y-SLIDE) To: ({player['x']}, {player['y']}), Map Pos: ({player['map_x']}, {player['map_y']})")
 
 
-    # --- Item Pickup Logic (if player position actually changed from original) ---
-    # This should use the player's NEW map_x, map_y after any movement or floor change.
-    if player["map_x"] != int(original_x // TILE_SIZE) or player["map_y"] != int(original_y // TILE_SIZE) or action_taken_this_turn: # check if map position changed or stairs used
-        # If stairs were used, action_taken_this_turn is true, and player is on a new tile.
-        # Item pickup should occur on the new tile.
-        # The current map_col and map_row for item pickup should be player['map_x'] and player['map_y']
-        
-        map_col_for_item = player['map_x']
-        map_row_for_item = player['map_y']
-        
-        # Ensure current_map_data is up-to-date if floor changed
-        current_map_data_for_items = all_floor_maps[current_floor]
+            # --- Item Pickup Logic (if player position actually changed from original) ---
+            # This should use the player's NEW map_x, map_y after any movement or floor change.
+            if player["map_x"] != int(original_x // TILE_SIZE) or player["map_y"] != int(original_y // TILE_SIZE) or action_taken_this_turn: # check if map position changed or stairs used
+                # If stairs were used, action_taken_this_turn is true, and player is on a new tile.
+                # Item pickup should occur on the new tile.
+                # The current map_col and map_row for item pickup should be player['map_x'] and player['map_y']
+                
+                map_col_for_item = player['map_x']
+                map_row_for_item = player['map_y']
+                
+                # Ensure current_map_data is up-to-date if floor changed
+                current_map_data_for_items = all_floor_maps[current_floor]
 
-        if 0 <= map_row_for_item < len(current_map_data_for_items) and 0 <= map_col_for_item < len(current_map_data_for_items[0]):
-            # Check tile type on the *current* floor map after potential floor change
-            tile_type_under_player = current_map_data_for_items[map_row_for_item][map_col_for_item]
-            
-            if tile_type_under_player == KEY_TILE:
-                player["keys"] += 1; current_map_data_for_items[map_row_for_item][map_col_for_item] = FLOOR_TILE_TYPE 
-                add_message("Picked up a Key.")
-            elif tile_type_under_player == POTION_TILE:
-                player["hp"] = min(player["max_hp"], player["hp"] + POTION_HEAL_AMOUNT); current_map_data_for_items[map_row_for_item][map_col_for_item] = FLOOR_TILE_TYPE
-                add_message(f"Picked up a Potion. +{POTION_HEAL_AMOUNT} HP.")
-            elif tile_type_under_player == SWORD_TILE:
-                player["atk"] += SWORD_ATK_BOOST; current_map_data_for_items[map_row_for_item][map_col_for_item] = FLOOR_TILE_TYPE
-                add_message(f"Picked up a Sword. +{SWORD_ATK_BOOST} ATK.")
-            elif tile_type_under_player == SHIELD_TILE:
-                player["def"] += SHIELD_DEF_BOOST; current_map_data_for_items[map_row_for_item][map_col_for_item] = FLOOR_TILE_TYPE
-                add_message(f"Picked up a Shield. +{SHIELD_DEF_BOOST} DEF.")
-            elif tile_type_under_player == SUPER_POTION_TILE:
-                heal_amount = SUPER_POTION_HEAL_AMOUNT
-                player['hp'] = min(player['max_hp'], player['hp'] + heal_amount)
-                add_message(f"Picked up Super Potion. +{heal_amount} HP.")
-                current_map_data_for_items[map_row_for_item][map_col_for_item] = FLOOR_TILE_TYPE
-            elif tile_type_under_player == STEEL_SWORD_TILE:
-                atk_boost = STEEL_SWORD_ATK_BOOST
-                player['atk'] += atk_boost
-                add_message(f"Picked up Steel Sword. +{atk_boost} ATK.")
-                current_map_data_for_items[map_row_for_item][map_col_for_item] = FLOOR_TILE_TYPE
-            elif tile_type_under_player == STEEL_SHIELD_TILE:
-                def_boost = STEEL_SHIELD_DEF_BOOST
-                player['def'] += def_boost
+                if 0 <= map_row_for_item < len(current_map_data_for_items) and 0 <= map_col_for_item < len(current_map_data_for_items[0]):
+                    # Check tile type on the *current* floor map after potential floor change
+                    tile_type_under_player = current_map_data_for_items[map_row_for_item][map_col_for_item]
+                    
+                    if tile_type_under_player == KEY_TILE:
+                        player["keys"] += 1; current_map_data_for_items[map_row_for_item][map_col_for_item] = FLOOR_TILE_TYPE 
+                        add_message("Picked up a Key.")
+                    elif tile_type_under_player == POTION_TILE:
+                        player["hp"] = min(player["max_hp"], player["hp"] + POTION_HEAL_AMOUNT); current_map_data_for_items[map_row_for_item][map_col_for_item] = FLOOR_TILE_TYPE
+                        add_message(f"Picked up a Potion. +{POTION_HEAL_AMOUNT} HP.")
+                    elif tile_type_under_player == SWORD_TILE:
+                        player["atk"] += SWORD_ATK_BOOST; current_map_data_for_items[map_row_for_item][map_col_for_item] = FLOOR_TILE_TYPE
+                        add_message(f"Picked up a Sword. +{SWORD_ATK_BOOST} ATK.")
+                    elif tile_type_under_player == SHIELD_TILE:
+                        player["def"] += SHIELD_DEF_BOOST; current_map_data_for_items[map_row_for_item][map_col_for_item] = FLOOR_TILE_TYPE
+                        add_message(f"Picked up a Shield. +{SHIELD_DEF_BOOST} DEF.")
+                    elif tile_type_under_player == SUPER_POTION_TILE:
+                        heal_amount = SUPER_POTION_HEAL_AMOUNT
+                        player['hp'] = min(player['max_hp'], player['hp'] + heal_amount)
+                        add_message(f"Picked up Super Potion. +{heal_amount} HP.")
+                        current_map_data_for_items[map_row_for_item][map_col_for_item] = FLOOR_TILE_TYPE
+                    elif tile_type_under_player == STEEL_SWORD_TILE:
+                        atk_boost = STEEL_SWORD_ATK_BOOST
+                        player['atk'] += atk_boost
+                        add_message(f"Picked up Steel Sword. +{atk_boost} ATK.")
+                        current_map_data_for_items[map_row_for_item][map_col_for_item] = FLOOR_TILE_TYPE
+                    elif tile_type_under_player == STEEL_SHIELD_TILE:
+                        def_boost = STEEL_SHIELD_DEF_BOOST
+                        player['def'] += def_boost
                 add_message(f"Picked up Steel Shield. +{def_boost} DEF.")
                 current_map_data_for_items[map_row_for_item][map_col_for_item] = FLOOR_TILE_TYPE
-        # --- End of Game Logic Block (if not game_over) ---
+            # --- End of Game Logic Block (if not game_over) --- (This comment was part of the previous diff, ensuring it's correctly placed or removed if it implies the end of the indented block)
 
     # End of 'if not in_shop_menu:' block
     else: # Player is in the shop menu (Drawing part only, event handling moved up)
+        # --- Drawing Shop UI ---
+        screen.fill(SHOP_UI_BACKGROUND_COLOR)
+        
         # --- Drawing Shop UI ---
         screen.fill(SHOP_UI_BACKGROUND_COLOR)
         
