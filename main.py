@@ -340,8 +340,16 @@ while running:
         if keys[pygame.K_RIGHT]: prospective_x += player["speed"]
         if keys[pygame.K_UP]: prospective_y -= player["speed"]
         if keys[pygame.K_DOWN]: prospective_y += player["speed"]
-        if prospective_x < 0: prospective_x=0; elif prospective_x > SCREEN_WIDTH-player["width"]: prospective_x=SCREEN_WIDTH-player["width"]
-        if prospective_y < 0: prospective_y=0; elif prospective_y > SCREEN_HEIGHT-player["height"]: prospective_y=SCREEN_HEIGHT-player["height"]
+        
+        if prospective_x < 0:
+            prospective_x = 0
+        elif prospective_x > SCREEN_WIDTH - player["width"]:
+            prospective_x = SCREEN_WIDTH - player["width"]
+        
+        if prospective_y < 0:
+            prospective_y = 0
+        elif prospective_y > SCREEN_HEIGHT - player["height"]:
+            prospective_y = SCREEN_HEIGHT - player["height"]
         
         target_center_x=prospective_x+player["width"]/2; target_center_y=prospective_y+player["height"]/2
         target_map_col=int(target_center_x//TILE_SIZE); target_map_row=int(target_center_y//TILE_SIZE)
